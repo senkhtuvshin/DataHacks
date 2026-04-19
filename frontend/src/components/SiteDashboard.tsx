@@ -38,7 +38,7 @@ interface Props {
   saved:      boolean;
   savedCount: number;
   onClose:    () => void;
-  onCertify:  (sim: SimulationResponse) => void;
+  onCertify:  (sim: SimulationResponse, rationale?: string | null) => void;
   onSave:     () => void;
   onCompare:  () => void;
 }
@@ -238,7 +238,7 @@ export function SiteDashboard({ score, profile, saved, savedCount, onClose, onCe
                     <KV k="Depth"    v={`${simResult.depthM} m`} mono />
                   </div>
                   {simResult.certified && (
-                    <button onClick={(e) => { e.stopPropagation(); onCertify(simResult); }}
+                    <button onClick={(e) => { e.stopPropagation(); onCertify(simResult, rationale); }}
                       className="w-full py-2 border border-[#22c55e]/40 bg-[#22c55e]/10 text-[#22c55e] text-xs font-bold tracking-widest uppercase hover:bg-[#22c55e]/20 transition-colors">
                       GENERATE CERTIFICATE
                     </button>

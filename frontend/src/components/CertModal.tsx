@@ -1,22 +1,29 @@
 "use client";
 
-import { X, CheckCircle2, XCircle, ShieldCheck, Printer } from "lucide-react";
+import { X, CheckCircle2, XCircle, ShieldCheck, Download } from "lucide-react";
 import { format } from "date-fns";
-import type { SimulationResponse, VentScoreResponse, BusinessProfile } from "@/lib/api";
-import { computeInsurance } from "@/lib/api";
+import type { SimulationResponse, VentScoreResponse, BusinessProfile, BusinessDecision } from "@/lib/api";
+import { computeInsurance, computeDecision } from "@/lib/api";
+import { generatePDFReport } from "@/lib/generatePDFReport";
 
 interface Props {
-  sim:     SimulationResponse;
-  score:   VentScoreResponse;
-  profile: BusinessProfile;
-  onClose: () => void;
+  sim:       SimulationResponse;
+  score:     VentScoreResponse;
+  profile:   BusinessProfile;
+  rationale?: string | null;
+  onClose:   () => void;
 }
 
-export function CertModal({ sim, score, profile, onClose }: Props) {
+export function CertModal({ sim, score, profile, rationale, onClose }: Props) {
   const approved  = sim.status === "APPROVED";
   const issued    = format(new Date(sim.timestamp), "PPpp 'UTC'");
   const certNum   = `VENT-${sim.scrippsSImId}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
   const insurance = computeInsurance(score, profile);
+  const decision  = computeDecision(score, profile);
+
+  function handleDownload() {
+    generatePDFReport({ score, sim, profile, decision, insurance, rationale: rationale ?? null, certNum });
+  }
 
   const sigText   = approved ? "text-sig-green" : "text-sig-red";
   const sigBorder = approved ? "border-sig-green" : "border-sig-red";
@@ -115,10 +122,10 @@ export function CertModal({ sim, score, profile, onClose }: Props) {
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-z800 flex-shrink-0">
           <button
-            onClick={() => window.print()}
+            onClick={handleDownload}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-z800 text-z500 hover:text-z200 hover:border-z700 text-xs transition-colors font-mono"
           >
-            <Printer size={12} /> Print PDF
+            <Download size={12} /> Download Report
           </button>
           <button
             onClick={onClose}

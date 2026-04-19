@@ -32,6 +32,7 @@ export default function Home() {
   const [saved,         setSaved]         = useState<SavedLocation[]>([]);
   const [selectedScore, setSelectedScore] = useState<VentScoreResponse | null>(null);
   const [certData,      setCertData]      = useState<SimulationResponse | null>(null);
+  const [certRationale, setCertRationale] = useState<string | null>(null);
   const [dashOpen,      setDashOpen]      = useState(false);
   const [certOpen,      setCertOpen]      = useState(false);
   const [settingsOpen,  setSettingsOpen]  = useState(false);
@@ -74,8 +75,9 @@ export default function Home() {
     setSettingsOpen(false);
   }, []);
 
-  function handleCertify(sim: SimulationResponse) {
+  function handleCertify(sim: SimulationResponse, rationale?: string | null) {
     setCertData(sim);
+    setCertRationale(rationale ?? null);
     setCertOpen(true);
   }
 
@@ -112,7 +114,7 @@ export default function Home() {
       )}
 
       {certOpen && certData && selectedScore && (
-        <CertModal sim={certData} score={selectedScore} profile={profile} onClose={() => setCertOpen(false)} />
+        <CertModal sim={certData} score={selectedScore} profile={profile} rationale={certRationale} onClose={() => setCertOpen(false)} />
       )}
 
       {/* Bottom bar — always visible when locations are saved */}
