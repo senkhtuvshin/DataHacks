@@ -407,7 +407,7 @@ export function SiteDashboard({ score, profile, saved, savedCount, onClose, onCe
           {/* ── Verification badge ── */}
           <div className="p-4 flex-1">
             <p className="text-[10px] text-[#52525b] uppercase tracking-widest mb-4">Verification Status</p>
-            <VerificationBadge simResult={simResult} onGoToSim={() => setActiveStep(4)} />
+            <VerificationBadge simResult={simResult} onGoToSim={() => setActiveStep(4)} onCertify={() => simResult && onCertify(simResult, rationale)} />
           </div>
         </div>
       </div>
@@ -538,7 +538,7 @@ function Threshold({ label, threshold, current }: { label: string; threshold: nu
   );
 }
 
-function VerificationBadge({ simResult, onGoToSim }: { simResult: SimulationResponse | null; onGoToSim: () => void }) {
+function VerificationBadge({ simResult, onGoToSim, onCertify }: { simResult: SimulationResponse | null; onGoToSim: () => void; onCertify: () => void }) {
   if (!simResult) {
     return (
       <div className="border border-dashed border-[#27272a] p-5 text-center space-y-3">
@@ -577,9 +577,17 @@ function VerificationBadge({ simResult, onGoToSim }: { simResult: SimulationResp
         <KV k="Sim ID"    v={simResult.scrippsSImId} mono small />
       </div>
       {ok && (
-        <p className={cn("text-[10px] font-mono uppercase tracking-wider", c.text)}>
-          Eligible for Vent Certification
-        </p>
+        <div className="space-y-2">
+          <p className={cn("text-[10px] font-mono uppercase tracking-wider", c.text)}>
+            Eligible for Vent Certification
+          </p>
+          <button
+            onClick={onCertify}
+            className="w-full py-2 border border-[#22c55e]/40 bg-[#22c55e]/10 text-[#22c55e] text-xs font-bold tracking-widest uppercase hover:bg-[#22c55e]/20 transition-colors"
+          >
+            VIEW CERTIFICATE →
+          </button>
+        </div>
       )}
     </div>
   );
