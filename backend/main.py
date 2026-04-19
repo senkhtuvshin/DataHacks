@@ -9,11 +9,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+import google.generativeai as genai
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from vent_processor import VentProcessor
+
+# ── Gemini ─────────────────────────────────────────────────────────────────
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyATYpbngYxkxPBCdUjj3lR7vwup9aaCy90")
+genai.configure(api_key=GEMINI_API_KEY)
+_gemini = genai.GenerativeModel("gemini-1.5-flash")
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.getenv("VENT_DATA_DIR", Path(__file__).parent / "data"))
@@ -58,6 +64,23 @@ def get_processor() -> VentProcessor:
 
 
 # ── Request / Response models ──────────────────────────────────────────────
+
+class RationaleRequest(BaseModel):
+    wellName:       str
+    county:         str
+    depthM:         float | None
+    heatScore:      float
+    pgvMs:          float
+    stabilityScore: float
+    ventScore:      float
+    riskLevel:      str
+    distanceKm:     float
+    companyName:    str
+    companySize:    str
+    useCase:        str
+    riskTolerance:  str
+    budget_musd:    float
+
 
 class SimulationRequest(BaseModel):
     lat: float = Field(..., ge=32.0, le=43.0, description="Latitude (WGS84)")
@@ -181,3 +204,43 @@ def simulate(body: SimulationRequest):
         scrippsSImId      = sim_id,
         timestamp         = datetime.now(timezone.utc).isoformat(),
     )
+
+
+@app.post("/rationale", summary="Gemini AI site rationale")
+async def rationale(body: RationaleRequest):
+    """
+    Calls Gemini 1.5 Flash to generate an expert geothermal site analysis
+    tailored to the operator's business profile.
+    """
+    depth_str = f"{body.depthM} m" if body.depthM else "depth not recorded"
+    use_case  = body.useCase.replace("_", " ")
+
+    prompt = f"""You are a senior geothermal infrastructure analyst at a top-tier engineering firm.
+Write a concise 3-sentence professional site assessment for the following borehole.
+Be specific, use the exact numbers provided, and tailor the conclusion to the operator's business context.
+Do not use bullet points. Do not use markdown. Plain prose only.
+
+SITE DATA:
+- Well: {body.wellName}, {body.county} County, California
+- Depth: {depth_str}
+- Heat Score: {body.heatScore}/100
+- Peak Ground Velocity: {(body.pgvMs * 100):.4f} cm/s (Rekoske et al. 2025, Scripps Institution)
+- Seismic Risk: {body.riskLevel}
+- Stability Score: {body.stabilityScore}/100
+- Vent Score: {body.ventScore}/100
+- Distance from query point: {body.distanceKm} km
+
+OPERATOR PROFILE:
+- Company: {body.companyName or "Undisclosed operator"}
+- Size: {body.companySize}
+- Use case: {use_case}
+- Risk tolerance: {body.riskTolerance}
+- Development budget: ${body.budget_musd}M USD
+
+Write the assessment now:"""
+
+    try:
+        response = await _gemini.generate_content_async(prompt)
+        return {"rationale": response.text.strip()}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Gemini error: {exc}")

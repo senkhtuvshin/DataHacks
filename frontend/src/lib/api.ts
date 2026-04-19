@@ -106,6 +106,35 @@ export async function runSimulation(body: SimulationRequest): Promise<Simulation
   return res.json();
 }
 
+export async function fetchRationale(
+  score: VentScoreResponse,
+  profile: BusinessProfile,
+): Promise<string> {
+  const res = await fetch(`${API}/rationale`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      wellName:       score.wellName,
+      county:         score.county,
+      depthM:         score.depthM,
+      heatScore:      score.heatScore,
+      pgvMs:          score.pgvMs,
+      stabilityScore: score.stabilityScore,
+      ventScore:      score.ventScore,
+      riskLevel:      score.riskLevel,
+      distanceKm:     score.distanceKm,
+      companyName:    profile.companyName,
+      companySize:    profile.companySize,
+      useCase:        profile.useCase,
+      riskTolerance:  profile.riskTolerance,
+      budget_musd:    profile.budget_musd,
+    }),
+  });
+  if (!res.ok) throw new Error("Rationale generation failed");
+  const data = await res.json();
+  return data.rationale;
+}
+
 // ── Decision engine (client-side) ──────────────────────────────────────────
 
 export interface BusinessDecision {

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Bookmark, BookmarkCheck, CheckCircle2, XCircle, Loader2, ChevronRight, GitCompare } from "lucide-react";
 import type { VentScoreResponse, SimulationResponse, BusinessProfile } from "@/lib/api";
-import { runSimulation, computeDecision, computeInsurance } from "@/lib/api";
+import { runSimulation, computeDecision, computeInsurance, fetchRationale } from "@/lib/api";
 import { MiniChart } from "@/components/ui/mini-chart";
 import { cn } from "@/lib/utils";
 
@@ -29,17 +29,6 @@ const SIG: Record<SigColor, { text: string; bg: string; border: string; dot: str
   red:   { text: "text-[#ef4444]", bg: "bg-[#ef4444]/10", border: "border-[#ef4444]/30", dot: "bg-[#ef4444]" },
 };
 
-function generateRationale(s: VentScoreResponse, p: BusinessProfile) {
-  const pgv = (s.pgvMs * 100).toFixed(2);
-  const dep = s.depthM ? `${s.depthM} m (${depthLabel(s.depthM)})` : "depth unrecorded";
-  const rec = s.ventScore >= 75 ? "strong commercial viability" : s.ventScore >= 55 ? "conditional feasibility" : "exploratory potential only";
-  return `${s.wellName} in ${s.county} demonstrates ${rec} for ${p.useCase.replace(/_/g, " ")}. ` +
-    `The ${dep} borehole yields a heat score of ${s.heatScore}/100, indicating ${s.heatScore >= 60 ? "significant" : "moderate"} geothermal gradient. ` +
-    `Rekoske et al. 2025 physics simulations record a Peak Ground Velocity of ${pgv} cm/s at this coordinate, ` +
-    `placing the site in the ${s.riskLevel.toLowerCase()} seismic risk category. ` +
-    `The combined Vent Score of ${s.ventScore} ${s.ventScore >= 70 ? "supports infrastructure investment" : s.ventScore >= 45 ? "warrants further geological survey" : "advises against immediate development"} ` +
-    `under ${p.riskTolerance} risk parameters for a ${p.companySize} operator.`;
-}
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -57,16 +46,31 @@ interface Props {
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function SiteDashboard({ score, profile, saved, savedCount, onClose, onCertify, onSave, onCompare }: Props) {
-  const [activeStep, setActiveStep] = useState<StepId>(3);
-  const [material,   setMaterial]   = useState<Material>("steel");
-  const [depth,      setDepth]      = useState(500);
-  const [simResult,  setSimResult]  = useState<SimulationResponse | null>(null);
-  const [running,    setRunning]    = useState(false);
-  const [simErr,     setSimErr]     = useState<string | null>(null);
+  const [activeStep,  setActiveStep]  = useState<StepId>(3);
+  const [material,    setMaterial]    = useState<Material>("steel");
+  const [depth,       setDepth]       = useState(500);
+  const [simResult,   setSimResult]   = useState<SimulationResponse | null>(null);
+  const [running,     setRunning]     = useState(false);
+  const [simErr,      setSimErr]      = useState<string | null>(null);
+  const [rationale,   setRationale]   = useState<string | null>(null);
+  const [ratLoading,  setRatLoading]  = useState(true);
+
+  // Fetch Gemini rationale when site or profile changes
+  useEffect(() => {
+    setRationale(null);
+    setRatLoading(true);
+    fetchRationale(score, profile)
+      .then((text) => setRationale(text))
+      .catch(() => setRationale(
+        `${score.wellName} in ${score.county} yields a Vent Score of ${score.ventScore}/100 ` +
+        `with a ${score.riskLevel.toLowerCase()} seismic risk profile. ` +
+        `PGV of ${(score.pgvMs * 100).toFixed(4)} cm/s recorded by Rekoske et al. 2025.`
+      ))
+      .finally(() => setRatLoading(false));
+  }, [score.wellName, profile.useCase, profile.riskTolerance, profile.companySize]);
 
   const decision   = computeDecision(score, profile);
   const insurance  = computeInsurance(score, profile);
-  const rationale  = generateRationale(score, profile);
   const sfRequired = profile.riskTolerance === "conservative" ? 5 : profile.riskTolerance === "aggressive" ? 1.5 : 3;
   const sc         = scoreColor(score.ventScore);
   const rc         = riskColor(score.riskLevel);
@@ -259,14 +263,21 @@ export function SiteDashboard({ score, profile, saved, savedCount, onClose, onCe
 
           <div className="p-4 space-y-3">
             {/* Rationale card */}
-            <BentoCard label="AI SITE RATIONALE · GEMINI" accent="none">
+            <BentoCard label="AI SITE RATIONALE · GEMINI 1.5 FLASH" accent="none">
               <div className="flex items-start gap-3">
-                <div className="w-5 h-5 border border-[#27272a] flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-5 h-5 border border-[#27272a] flex items-center justify-center flex-shrink-0 mt-0.5 flex-shrink-0">
                   <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none">
                     <path d="M8 1L1 4.5l7 3.5 7-3.5L8 1zM1 11.5l7 3.5 7-3.5M1 8l7 3.5 7-3.5" stroke="#71717a" strokeWidth="1" strokeLinecap="round"/>
                   </svg>
                 </div>
-                <p className="text-[#a1a1aa] text-xs leading-5">{rationale}</p>
+                {ratLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={11} className="animate-spin text-[#52525b]" />
+                    <span className="text-[#52525b] text-xs font-mono">Generating analysis…</span>
+                  </div>
+                ) : (
+                  <p className="text-[#a1a1aa] text-xs leading-5">{rationale}</p>
+                )}
               </div>
             </BentoCard>
 
