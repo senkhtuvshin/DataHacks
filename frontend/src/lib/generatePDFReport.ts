@@ -18,31 +18,26 @@ interface ReportData {
   certNum:   string;
 }
 
-// ── Colour palette — designed for WHITE page ──────────────────────────────
+// ── Colours — white background PDF ──────────────────────────────────────────
 const C = {
-  // text
-  ink:       [15,  15,  20]  as [number,number,number],   // near-black — main values
-  body:      [45,  45,  55]  as [number,number,number],   // dark gray — secondary text
-  muted:     [90,  90, 105]  as [number,number,number],   // medium gray — labels
-  faint:     [150,150, 160]  as [number,number,number],   // light gray — meta
-  // backgrounds
-  headerBg:  [18,  18,  22]  as [number,number,number],   // near-black cover bar
-  sectionBg: [232,232, 236]  as [number,number,number],   // light gray section headers
-  rowBg:     [246,246, 249]  as [number,number,number],   // off-white rows
-  track:     [210,210, 216]  as [number,number,number],   // progress bar track
-  // signals
-  green:     [21, 128,  61]  as [number,number,number],   // darker green (readable on white)
-  amber:     [180, 100,   0] as [number,number,number],   // darker amber
-  red:       [185,  28,  28] as [number,number,number],   // darker red
+  ink:       [15,  15,  20]  as [number,number,number],
+  body:      [50,  50,  60]  as [number,number,number],
+  muted:     [95,  95, 110]  as [number,number,number],
+  faint:     [155,155, 165]  as [number,number,number],
+  headerBg:  [18,  18,  22]  as [number,number,number],
+  sectionBg: [230,230, 235]  as [number,number,number],
+  track:     [208,208, 215]  as [number,number,number],
+  green:     [21, 128,  61]  as [number,number,number],
+  amber:     [175, 100,   0] as [number,number,number],
+  red:       [185,  28,  28] as [number,number,number],
   white:     [255, 255, 255] as [number,number,number],
-  black:     [0,   0,   0]   as [number,number,number],
-  border:    [200, 200, 208] as [number,number,number],
+  border:    [198, 198, 208] as [number,number,number],
 };
 
-function rgb(doc: jsPDF, c: [number,number,number], type: "fill"|"text"|"draw") {
-  if (type === "fill") doc.setFillColor(c[0], c[1], c[2]);
-  if (type === "text") doc.setTextColor(c[0], c[1], c[2]);
-  if (type === "draw") doc.setDrawColor(c[0], c[1], c[2]);
+function rgb(doc: jsPDF, c: [number,number,number], t: "fill"|"text"|"draw") {
+  if (t === "fill") doc.setFillColor(c[0], c[1], c[2]);
+  if (t === "text") doc.setTextColor(c[0], c[1], c[2]);
+  if (t === "draw") doc.setDrawColor(c[0], c[1], c[2]);
 }
 
 export function generatePDFReport(data: ReportData) {
@@ -54,26 +49,26 @@ export function generatePDFReport(data: ReportData) {
   const CW  = W - PL - PR;
   let   y   = 0;
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
   function nl(n = 4) { y += n; }
 
   function rule(thickness = 0.15) {
     rgb(doc, C.border, "draw");
     doc.setLineWidth(thickness);
     doc.line(PL, y, W - PR, y);
-    nl(3);
+    nl(4);
   }
 
+  // Section header: dark bg bar — advances y by enough to clear text below
   function sectionHeader(text: string) {
-    nl(2);
+    nl(3);
     rgb(doc, C.sectionBg, "fill");
-    doc.rect(PL, y - 1, CW, 7.5, "F");
+    doc.rect(PL, y, CW, 8, "F");
     doc.setFontSize(6.5);
     doc.setFont("helvetica", "bold");
     rgb(doc, C.muted, "text");
-    doc.text(text.toUpperCase(), PL + 3, y + 4.5, { charSpace: 0.9 });
-    nl(10);
+    doc.text(text.toUpperCase(), PL + 3, y + 5.5, { charSpace: 0.9 });
+    y += 8; // exact rect height, no overlap
+    nl(5); // breathing room below rect before content
   }
 
   function lbl(text: string, x = PL) {
@@ -84,95 +79,97 @@ export function generatePDFReport(data: ReportData) {
     nl(3.5);
   }
 
-  function val(text: string, x = PL, opts: { color?: [number,number,number]; mono?: boolean; size?: number } = {}) {
-    const { color = C.ink, mono = false, size = 8.5 } = opts;
-    doc.setFontSize(size);
+  function val(
+    text: string,
+    x = PL,
+    opts: { color?: [number,number,number]; mono?: boolean } = {},
+  ) {
+    const { color = C.ink, mono = false } = opts;
+    doc.setFontSize(8.5);
     doc.setFont(mono ? "courier" : "helvetica", "normal");
     rgb(doc, color, "text");
     doc.text(text, x, y);
-    nl(5);
+    nl(5.5);
   }
 
   function twoCol(pairs: [string, string][], mono = false) {
-    const half = CW / 2;
-    const startY = y;
-    let lY = startY, rY = startY;
-
+    const half  = CW / 2;
+    let   lY    = y;
+    let   rY    = y;
     pairs.forEach(([l, v], i) => {
-      const isLeft = i % 2 === 0;
-      const x = isLeft ? PL : PL + half;
-      y = isLeft ? lY : rY;
-
+      const left = i % 2 === 0;
+      const x    = left ? PL : PL + half;
+      y = left ? lY : rY;
       lbl(l, x);
       const vColor = v === "APPROVED" ? C.green : v === "REJECTED" ? C.red : C.ink;
       val(v, x, { color: vColor, mono });
-
-      if (isLeft) lY = y; else rY = y;
+      if (left) lY = y; else rY = y;
     });
     y = Math.max(lY, rY);
   }
 
   function scoreBar(v: number, color: [number,number,number]) {
-    const bH = 3;
     rgb(doc, C.track, "fill");
-    doc.rect(PL, y, CW, bH, "F");
+    doc.rect(PL, y, CW, 3, "F");
     rgb(doc, color, "fill");
-    doc.rect(PL, y, (v / 100) * CW, bH, "F");
-    nl(bH + 5);
-  }
-
-  function badge(text: string, bgColor: [number,number,number], x: number, bY: number) {
-    const pad = 2.5;
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    const tw = doc.getTextWidth(text);
-    rgb(doc, bgColor, "fill");
-    doc.rect(x, bY - 5, tw + pad * 2, 7, "F");
-    rgb(doc, C.white, "text");
-    doc.text(text, x + pad, bY);
+    doc.rect(PL, y, (v / 100) * CW, 3, "F");
+    nl(8);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   // PAGE 1
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Cover bar
+  // ── Cover header bar ─────────────────────────────────────────────────────
   rgb(doc, C.headerBg, "fill");
-  doc.rect(0, 0, W, 38, "F");
+  doc.rect(0, 0, W, 40, "F");
 
-  y = 14;
-  doc.setFontSize(20);
+  // VENT wordmark — line 1
+  y = 13;
+  doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   rgb(doc, C.white, "text");
   doc.text("VENT", PL, y, { charSpace: 3 });
 
-  doc.setFontSize(7);
+  // Subtitle — on its own line below, smaller
+  y = 20;
+  doc.setFontSize(6.5);
   doc.setFont("helvetica", "normal");
   rgb(doc, C.faint, "text");
-  doc.text("GEOTHERMAL INTELLIGENCE & RESILIENCE ENGINE", PL + 16, y, { charSpace: 0.4 });
+  doc.text("GEOTHERMAL INTELLIGENCE & RESILIENCE ENGINE", PL, y, { charSpace: 0.5 });
 
-  y = 23;
-  doc.setFontSize(10);
+  // Report title line
+  y = 28;
+  doc.setFontSize(9.5);
   doc.setFont("helvetica", "bold");
   rgb(doc, [200, 200, 210] as [number,number,number], "text");
   doc.text("STRUCTURAL INTEGRITY & SITE ASSESSMENT REPORT", PL, y);
 
-  y = 31;
+  // Status badge + issued date
   const isApproved = sim.status === "APPROVED";
-  badge(
-    isApproved ? "✓  VENT CERTIFIED" : "✗  CERTIFICATION REJECTED",
-    isApproved ? C.green : C.red,
-    PL, y,
-  );
+  const statusColor = isApproved ? C.green : C.red;
+  const issuedStr   = format(new Date(sim.timestamp), "dd MMM yyyy  HH:mm 'UTC'");
 
-  const issuedStr = format(new Date(sim.timestamp), "dd MMM yyyy  HH:mm 'UTC'");
+  y = 36;
+  // Badge
+  const badgeTxt = isApproved ? "VENT CERTIFIED" : "CERTIFICATION REJECTED";
+  const bPad = 2.5;
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  const bW = doc.getTextWidth(badgeTxt) + bPad * 2;
+  rgb(doc, statusColor, "fill");
+  doc.rect(PL, y - 5, bW, 6.5, "F");
+  rgb(doc, C.white, "text");
+  doc.text(badgeTxt, PL + bPad, y);
+
+  // Issued date right-aligned
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   rgb(doc, C.faint, "text");
-  const issuedW = doc.getTextWidth(`Issued: ${issuedStr}`);
-  doc.text(`Issued: ${issuedStr}`, W - PR - issuedW, y);
+  const dtW = doc.getTextWidth(`Issued: ${issuedStr}`);
+  doc.text(`Issued: ${issuedStr}`, W - PR - dtW, y);
 
-  y = 48;
+  y = 50;
 
   // ── 01 Site Overview ──────────────────────────────────────────────────────
   sectionHeader("01 · Site Overview");
@@ -186,31 +183,35 @@ export function generatePDFReport(data: ReportData) {
     ["Use Case",     profile.useCase.replace(/_/g, " ")],
     ["Budget",       `$${profile.budget_musd}M USD`],
   ]);
-  nl(1); rule();
+  nl(2); rule();
 
-  // ── 02 Vent Score ─────────────────────────────────────────────────────────
+  // ── 02 Vent Score Breakdown ───────────────────────────────────────────────
   sectionHeader("02 · Vent Score Breakdown");
 
   const vsColor = score.ventScore >= 70 ? C.green : score.ventScore >= 45 ? C.amber : C.red;
 
-  doc.setFontSize(30);
+  // Score number — drawn at baseline; font size 28 means ascender ~9.9mm above y
+  // sectionHeader already gave 5mm padding, so y is clear of the rect
+  doc.setFontSize(28);
   doc.setFont("helvetica", "bold");
   rgb(doc, vsColor, "text");
   doc.text(String(score.ventScore), PL, y);
-  doc.setFontSize(11);
+
+  doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   rgb(doc, C.muted, "text");
-  doc.text("/ 100", PL + 22, y);
-  nl(5);
+  doc.text("/ 100", PL + 20, y);
+
+  nl(6); // advance past the large numeral descender
   scoreBar(score.ventScore, vsColor);
 
   twoCol([
-    ["Heat Score",      `${score.heatScore} / 100`],
-    ["Stability Score", `${score.stabilityScore} / 100`],
-    ["Peak Ground Vel.",`${sim.pgvMs.toFixed(5)} m/s`],
-    ["Seismic Risk",    score.riskLevel],
+    ["Heat Score",       `${score.heatScore} / 100`],
+    ["Stability Score",  `${score.stabilityScore} / 100`],
+    ["Peak Ground Vel.", `${sim.pgvMs.toFixed(5)} m/s`],
+    ["Seismic Risk",     score.riskLevel],
   ]);
-  nl(1); rule();
+  nl(2); rule();
 
   // ── 03 Seismic Analysis ───────────────────────────────────────────────────
   sectionHeader("03 · Seismic Analysis");
@@ -220,38 +221,38 @@ export function generatePDFReport(data: ReportData) {
     ["PGV (m/s)",       sim.pgvMs.toFixed(5)],
     ["Risk Level",      score.riskLevel],
   ], true);
-  nl(1); rule();
+  nl(2); rule();
 
-  // ── 04 Material Simulation ────────────────────────────────────────────────
+  // ── 04 Material Resilience Simulation ────────────────────────────────────
   sectionHeader("04 · Material Resilience Simulation");
   twoCol([
-    ["Material",       sim.materialLabel],
-    ["Install Depth",  `${sim.depthM} m`],
-    ["Seismic Stress", `${sim.seismicStressMpa.toFixed(4)} MPa`],
-    ["Eff. Yield Str.",`${sim.yieldStrengthMpa} MPa`],
-    ["Safety Factor",  `${sim.safetyFactor}×`],
-    ["Certification",  sim.status],
+    ["Material",        sim.materialLabel],
+    ["Install Depth",   `${sim.depthM} m`],
+    ["Seismic Stress",  `${sim.seismicStressMpa.toFixed(4)} MPa`],
+    ["Eff. Yield Str.", `${sim.yieldStrengthMpa} MPa`],
+    ["Safety Factor",   `${sim.safetyFactor}×`],
+    ["Certification",   sim.status],
   ], true);
+  nl(2);
 
   // Verdict box
-  nl(2);
-  const vBoxFill = isApproved ? ([220, 240, 225] as [number,number,number]) : ([245, 220, 220] as [number,number,number]);
-  const vBoxBorder = isApproved ? C.green : C.red;
-  const vBoxText   = isApproved ? C.green : C.red;
-  rgb(doc, vBoxFill, "fill");
-  rgb(doc, vBoxBorder, "draw");
-  doc.setLineWidth(0.4);
+  const vFill   = isApproved ? ([218, 240, 224] as [number,number,number]) : ([245, 218, 218] as [number,number,number]);
+  const vBorder = isApproved ? C.green : C.red;
+  rgb(doc, vFill, "fill");
+  rgb(doc, vBorder, "draw");
+  doc.setLineWidth(0.5);
   doc.rect(PL, y, CW, 12, "FD");
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  rgb(doc, vBoxText, "text");
+  rgb(doc, vBorder, "text");
   doc.text(
     isApproved
       ? `APPROVED — Safety factor ${sim.safetyFactor}× meets structural integrity requirements.`
       : `REJECTED — Seismic stress ${sim.seismicStressMpa.toFixed(2)} MPa exceeds material yield threshold.`,
     PL + 4, y + 7.5,
   );
-  nl(18);
+  y += 12;
+  nl(4);
 
   // ══════════════════════════════════════════════════════════════════════════
   // PAGE 2
@@ -259,13 +260,12 @@ export function generatePDFReport(data: ReportData) {
   doc.addPage();
   y = 14;
 
-  // Page 2 mini header
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   rgb(doc, C.faint, "text");
-  doc.text("VENT SITE ASSESSMENT REPORT  ·  " + score.wellName.toUpperCase(), PL, y);
-  doc.text("Page 2 / 2", W - PR - 16, y);
-  nl(4); rule(0.15);
+  doc.text("VENT SITE ASSESSMENT  ·  " + score.wellName.toUpperCase(), PL, y);
+  doc.text("Page 2 / 2", W - PR - 14, y);
+  nl(5); rule(0.15);
 
   // ── 05 Business Recommendation ────────────────────────────────────────────
   sectionHeader("05 · Business Recommendation");
@@ -275,7 +275,7 @@ export function generatePDFReport(data: ReportData) {
     decision.color === "amber"  ? C.amber :
     decision.color === "orange" ? C.amber : C.red;
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   rgb(doc, dColor, "text");
   doc.text(decision.action, PL, y);
@@ -300,10 +300,12 @@ export function generatePDFReport(data: ReportData) {
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     rgb(doc, C.body, "text");
-    doc.text(`•  ${r}`, PL + 2, y);
-    nl(5);
+    const wrapped = doc.splitTextToSize(`•  ${r}`, CW - 4);
+    doc.text(wrapped, PL + 2, y);
+    y += wrapped.length * 5;
+    nl(1);
   });
-  nl(1); rule();
+  nl(2); rule();
 
   // ── 06 Insurance Classification ───────────────────────────────────────────
   sectionHeader("06 · Insurance Classification");
@@ -313,14 +315,17 @@ export function generatePDFReport(data: ReportData) {
     insurance.class === "B" ? C.body  :
     insurance.class === "C" ? C.amber : C.red;
 
-  doc.setFontSize(22);
+  // Class label at normal-ish size — no overlap risk
+  doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   rgb(doc, insColor, "text");
   doc.text(`Class ${insurance.class}`, PL, y);
-  doc.setFontSize(9);
+  nl(3);
+
+  doc.setFontSize(8.5);
   doc.setFont("helvetica", "normal");
   rgb(doc, C.body, "text");
-  doc.text(`  —  ${insurance.label}`, PL + 24, y);
+  doc.text(insurance.label, PL, y);
   nl(7);
 
   twoCol([
@@ -329,19 +334,18 @@ export function generatePDFReport(data: ReportData) {
     ["Providers",       insurance.providers.length ? insurance.providers.slice(0, 2).join(", ") : "Not available"],
     ["Key Exclusions",  insurance.exclusions.slice(0, 2).join("; ")],
   ]);
-  nl(1); rule();
+  nl(2); rule();
 
   // ── 07 AI Site Rationale ──────────────────────────────────────────────────
   sectionHeader("07 · AI Site Rationale  (Gemini 1.5 Flash)");
 
-  const rationaleText = rationale || "AI rationale not available for this report.";
-  const lines = doc.splitTextToSize(rationaleText, CW);
+  const rationaleText = rationale || "AI rationale not available.";
+  const rLines = doc.splitTextToSize(rationaleText, CW);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   rgb(doc, C.body, "text");
-  doc.text(lines, PL, y);
-  y += lines.length * 5.5 + 4;
-
+  doc.text(rLines, PL, y);
+  y += rLines.length * 5.5 + 4;
   rule();
 
   // ── 08 Certificate Metadata ───────────────────────────────────────────────
@@ -354,20 +358,18 @@ export function generatePDFReport(data: ReportData) {
     ["Issued At",       issuedStr],
     ["Vent Score",      `${sim.ventScore} / 100`],
   ], true);
-  nl(2);
+  nl(3);
 
   // ── Disclaimer ────────────────────────────────────────────────────────────
-  const maxY = 278;
-  if (y < maxY - 20) y = maxY - 20;
-
+  const disclaimerY = Math.max(y, 272);
   rgb(doc, C.sectionBg, "fill");
-  doc.rect(PL, y, CW, 18, "F");
+  doc.rect(PL, disclaimerY, CW, 18, "F");
   doc.setFontSize(6.5);
   doc.setFont("helvetica", "italic");
   rgb(doc, C.muted, "text");
   const disc = "This report is generated by the Vent platform using physics-based seismic simulations from the Scripps Institution of Oceanography (Rekoske et al. 2025). It is for preliminary due-diligence only and does not constitute a licensed engineering report. All investment and permitting decisions must be reviewed by a certified geothermal engineer.";
   const discLines = doc.splitTextToSize(disc, CW - 6);
-  doc.text(discLines, PL + 3, y + 5.5);
+  doc.text(discLines, PL + 3, disclaimerY + 5.5);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const dateStr  = format(new Date(), "yyyyMMdd");
