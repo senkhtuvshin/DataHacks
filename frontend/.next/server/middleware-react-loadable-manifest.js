@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"app/page.tsx -> @/components/VentMap\":{\"id\":\"app/page.tsx -> @/components/VentMap\",\"files\":[\"static/css/_app-pages-browser_src_components_VentMap_tsx.css\",\"static/chunks/_app-pages-browser_src_components_VentMap_tsx.js\"]}}"

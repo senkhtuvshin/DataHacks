@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #09090b;
+  color: #fafafa;
+  font-family: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Monospace all data values globally via class */
+.data-value { font-family: 'JetBrains Mono', monospace; }
+
+/* Mapbox overrides */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib { display: none !important; }
+
+.mapboxgl-popup-content {
+  background: #18181b !important;
+  border: 1px solid #27272a !important;
+  border-radius: 4px !important;
+  padding: 10px 12px !important;
+  color: #fafafa !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 12px !important;
+  min-width: 160px !important;
+  box-shadow: none !important;
+}
+
+.mapboxgl-popup-tip {
+  border-top-color: #27272a !important;
+  border-bottom-color: #27272a !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: #09090b; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+/* Kill browser autofill background (Chrome injects yellow/white regardless of class-based styles) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px #09090b inset !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  caret-color: #e4e4e7;
+}
+
+/* Flat range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 2px;
+  background: #27272a;
+  border-radius: 0;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #e4e4e7;
+  border-radius: 0;
+  cursor: pointer;
+  border: none;
+}
+
+@media print {
+  body { background: white; color: black; overflow: auto; }
+}
