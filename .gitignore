@@ -2,7 +2,7 @@ node_modules/
 .next/
 __pycache__/
 *.pyc
-node_modules/
-.next/
-__pycache__/
-*.pyc
+.env.local
+*.node
+dist/
+.DS_Store
